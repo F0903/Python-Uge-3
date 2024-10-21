@@ -1,12 +1,16 @@
 from log_filter import LogFilter
 from log_file import LogFile
 from combined_log_filter import CombinedLogFilter
+import sys
 
 warning_filter = LogFilter(".*WARNING.*")
 error_filter = LogFilter(".*ERROR.*")
 warning_error_filter = CombinedLogFilter(warning_filter, error_filter)
 
-log_file = LogFile("./app_log.txt")
+if len(sys.argv) < 2:
+    raise Exception("You must provide a log file to filter!")
+
+log_file = LogFile(sys.argv[1])
 
 with log_file:
     print("----------=[PRINTING WARNINGS]=----------")
