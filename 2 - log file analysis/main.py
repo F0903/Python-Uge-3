@@ -7,30 +7,24 @@ warning_filter = LogFilter(".*WARNING.*")
 error_filter = LogFilter(".*ERROR.*")
 warning_error_filter = CombinedLogFilter(warning_filter, error_filter)
 
-if len(sys.argv) < 2:
+args_len = len(sys.argv)
+
+file_output = False
+
+# If the args length is less than 2 then the user has not provided a file path to scan.
+if args_len < 2:
     raise Exception("You must provide a log file to filter!")
+elif args_len == 3: # If the args length is equal to 3 then it is assumed that the 3rd arg is the output file. 
+    file_output = True
+    output_file = open("output.txt", "w")
 
 log_file = LogFile(sys.argv[1])
 
 with log_file:
-    print("----------=[PRINTING WARNINGS]=----------")
-    warning_iter = warning_filter.filter_log_file(log_file)
-    for warning in warning_iter:
-        print(warning)
-    print()
-
-    log_file.seek_to_start()
-
-    print("----------=[PRINTING ERRORS]=----------")
-    error_iter = error_filter.filter_log_file(log_file)
-    for error in error_iter:
-        print(error)
-    print()
-
-    log_file.seek_to_start()
-
-    print("----------=[PRINTING WARNINGS AND ERRORS]=----------")
+    output = output_file if file_output else None
+    print("----------=[PRINTING WARNINGS AND ERRORS]=----------", 
+          file=output) # Only print to file if output file is specified
     combined_iter = warning_error_filter.filter_log_file(log_file)
     for highlight in combined_iter:
-        print(highlight)
+        print(highlight, file=output)
     print()
