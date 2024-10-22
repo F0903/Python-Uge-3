@@ -8,9 +8,15 @@ class CsvLexer:
         self.line_num = 0
         self.line = ""
         self.index = 0
+        self.stop_requested = False
 
     def _advance_line(self):
-        self.line = next(self.input)
+        try:
+            self.line = next(self.input)
+        except StopIteration:
+            # If we somehow get to this point, then this will make the iter stop gracefully.
+            self.stop_requested = True
+
         self.line_num += 1
         self.index = 0
 
@@ -22,6 +28,7 @@ class CsvLexer:
         return self.line[self.index] if len(self.line) > self.index else None
 
     def _create_value_token(self) -> CsvValueToken:
+        start_index = self.index
         str_buf = ""
         while True:
             char = self._get_current_char()
@@ -33,11 +40,14 @@ class CsvLexer:
             str_buf += char
             self._advance_char()
 
-        return CsvValueToken(str_buf, self.line_num, self.index)
+        return CsvValueToken(str_buf, self.line_num, start_index + 1)
 
     def lex(self) -> Iterable[CsvToken]:
         self._advance_line()  # Priming the pump :)
         while True:
+            if self.stop_requested:
+                yield CsvToken(CsvTokenType.END_OF_FILE, self.line_num, self.index)
+
             char = self._get_current_char()
             match char:
                 case ",":

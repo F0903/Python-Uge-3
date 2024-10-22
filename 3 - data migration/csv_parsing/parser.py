@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import cast
+from typing import cast, TextIO
 from .token import CsvToken, CsvValueToken, CsvTokenType
 from .error import CsvError
 from .row import CsvRow
@@ -25,11 +25,17 @@ class CsvHeader:
 
 
 class CsvParser:
-    def __init__(self, lines: Iterable[str], bad_line_mode: BadLineMode) -> None:
+    def __init__(
+        self,
+        lines: Iterable[str],
+        bad_line_mode: BadLineMode,
+        print_error_to: TextIO | None,
+    ) -> None:
         self.error_state = False
 
         self.input = CsvLexer(lines).lex()
         self.bad_line_mode = bad_line_mode
+        self.print_to_file = print_error_to
 
         self.line_num = 0
         self.current_token = None
@@ -75,7 +81,10 @@ class CsvParser:
             case BadLineMode.ERROR:
                 raise error
             case BadLineMode.WARNING:
-                print(f"BAD LINE WARNING!\n{error.get_printable_message()}")
+                print(
+                    f"BAD LINE WARNING!\n{error.get_printable_message()}",
+                    file=self.print_to_file,
+                )
 
     def _assert_previous_value(self):
         current = self._get_current_token()

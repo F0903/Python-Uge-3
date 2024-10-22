@@ -1,9 +1,11 @@
 import re
 from collections.abc import Iterable
+from typing import TextIO
 from .row import CsvRow
 from .value import CsvValue
 from .error import CsvError
 from .token import CsvToken
+from .bad_line_mode import BadLineMode
 
 
 class CsvValidatorError(CsvError):
@@ -12,8 +14,27 @@ class CsvValidatorError(CsvError):
 
 
 class CsvTypeValidator:
-    def __init__(self, type_pattern_map: dict[str, re.Pattern]) -> None:
+    def __init__(
+        self,
+        type_pattern_map: dict[str, re.Pattern],
+        bad_line_mode: BadLineMode,
+        print_error_to: TextIO | None,
+    ) -> None:
+        self.error_state = False
         self.type_pattern_map = type_pattern_map
+        self.bad_line_mode = bad_line_mode
+        self.print_to_file = print_error_to
+
+    def _handle_error(self, error: CsvError):
+        self.error_state = True
+        match self.bad_line_mode:
+            case BadLineMode.ERROR:
+                raise error
+            case BadLineMode.WARNING:
+                print(
+                    f"BAD LINE WARNING!\n{error.get_printable_message()}",
+                    file=self.print_to_file,
+                )
 
     def _check_value(self, value: CsvValue) -> bool:
         value_type = value.get_collumn_type()
@@ -22,25 +43,28 @@ class CsvTypeValidator:
             value_str = value.get_value()
 
             if not pattern.match(value_str):
-                raise CsvValidatorError(
-                    f"Wrong type format! Value was '{value.get_value()}' expected regex format is '{pattern.pattern}'",
-                    value.debug_get_token(),
+                self._handle_error(
+                    CsvValidatorError(
+                        f"Wrong type format! Value was '{value.get_value()}' expected regex format is '{pattern.pattern}'",
+                        value.debug_get_token(),
+                    )
                 )
+                return False
 
             return True
         except KeyError:
-            raise CsvValidatorError(
-                f"Unknown collumn type! '{value_type}'", value.debug_get_token()
+            self._handle_error(
+                CsvValidatorError(
+                    f"Unknown collumn type! '{value_type}'", value.debug_get_token()
+                )
             )
 
-    def validate_row(self, row: CsvRow | None) -> CsvRow | None:
-        if row == None:
-            return None
+    def validate(self, rows: Iterable[CsvRow | None]) -> Iterable[CsvRow | None]:
+        for row in rows:
+            if row == None:
+                yield None  # We reached the end.
 
-        values = row.get_all_values()
-        # Make sure ALL values pass the tests.
-        if all(map(self._check_value, values)):
-            return row
-
-    def validate_iter(self, rows: Iterable[CsvRow | None]) -> Iterable[CsvRow | None]:
-        return map(self.validate_row, rows)
+            values = row.get_all_values()
+            # Make sure ALL values pass the tests.
+            if all(map(self._check_value, values)):
+                yield row
