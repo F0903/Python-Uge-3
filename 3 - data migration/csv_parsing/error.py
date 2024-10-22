@@ -1,4 +1,4 @@
-from csv_token import CsvToken
+from .token import CsvToken
 
 
 class CsvError(Exception):

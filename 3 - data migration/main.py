@@ -1,12 +1,22 @@
-from csv_lexer import CsvLexer
-from csv_parser import CsvParser
-from csv_error import CsvError
+from csv_parsing.parser import CsvParser
+from csv_parsing.bad_line_mode import BadLineMode
+from csv_parsing.error import CsvError
+from csv_parsing.validator import CsvTypeValidator
+import re
 
 try:
     file = open("csv_test_no_errors.csv")
 
-    lexer = CsvLexer(file)
-    parser = CsvParser(lexer.lex())
+    parser = CsvParser(file, BadLineMode.WARNING)
+    """ validator = CsvTypeValidator(
+        {
+            # Check types are valid with Regex
+            "customer_id": re.compile("\\d+"),
+            "name": re.compile(".*"),
+            "email": re.compile(".*"),
+            "purchase_amount": re.compile(".*"),
+        }
+    ) """
 
     for row in parser.parse():
         if row == None:

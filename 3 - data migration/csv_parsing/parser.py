@@ -1,7 +1,11 @@
 from collections.abc import Iterable
-from csv_token import CsvToken, CsvValueToken, CsvTokenType
 from typing import cast
-from csv_error import CsvError
+from .token import CsvToken, CsvValueToken, CsvTokenType
+from .error import CsvError
+from .row import CsvRow
+from .value import CsvValue
+from .lexer import CsvLexer
+from .bad_line_mode import BadLineMode
 
 
 class CsvParserError(CsvError):
@@ -20,44 +24,13 @@ class CsvHeader:
         return len(self.collumn_decls)
 
 
-class CsvValue:
-    def __init__(self, collumn_type: str, value: str) -> None:
-        self.collumn_type = collumn_type
-        self.value = value
-
-    def get_collumn_type(self) -> str:
-        return self.collumn_type
-
-    def get_value(self) -> str:
-        return self.value
-
-    def __repr__(self) -> str:
-        return f"[{self.collumn_type} = {self.value}]"
-
-
-class CsvRow:
-    def __init__(self, values: list[CsvValue]) -> None:
-        self.values = values
-
-    def get_all_values(self) -> list[CsvValue]:
-        return self.values
-
-    def get_value(self, collumn_type: str) -> CsvValue:
-        for value in self.values:
-            if value.collumn_type != collumn_type:
-                continue
-            return value
-
-    def __repr__(self) -> str:
-        str_buf = ""
-        for value in self.values:
-            str_buf += f"{value}"
-        return str_buf
-
-
 class CsvParser:
-    def __init__(self, input: Iterable[CsvToken]) -> None:
-        self.input = input
+    def __init__(self, lines: Iterable[str], bad_line_mode: BadLineMode) -> None:
+        self.error_state = False
+
+        self.input = CsvLexer(lines).lex()
+        self.bad_line_mode = bad_line_mode
+
         self.line_num = 0
         self.current_token = None
         self._parse_header()
@@ -96,25 +69,55 @@ class CsvParser:
         self._advance()
         self.line_num += 1
 
+    def _handle_error(self, error: CsvError):
+        self.error_state = True
+        match self.bad_line_mode:
+            case BadLineMode.ERROR:
+                raise error
+            case BadLineMode.WARNING:
+                print(f"BAD LINE WARNING!\n{error.get_printable_message()}")
+
     def _assert_previous_value(self):
         current = self._get_current_token()
         last = self._get_previous_token()
+
+        # If the current and last token was NOT a value token, then error out.
         if (
             current.type == CsvTokenType.COMMA or current.type == CsvTokenType.NEWLINE
         ) and (last.type == CsvTokenType.COMMA or last.type == CsvTokenType.NEWLINE):
-            raise CsvParserError("Empty value!", self._get_current_token())
+            self._handle_error(
+                CsvParserError("Empty value!", self._get_current_token())
+            )
 
-    def _assert_collumn_index(self, collumn_index: int):
+    def _assert_collumn_index(self):
         collumns_count = self.header.get_collumn_count()
-        if collumn_index >= collumns_count:
-            raise CsvParserError("Too many commas in row!", self._get_current_token())
+        if self.collumn_index >= collumns_count:
+            self._handle_error(
+                CsvParserError("Too many commas in row!", self._get_current_token())
+            )
+
+    def _recover_from_error(self):
+        self.collumn_index = 0
+
+        # If we are in an error state, then we advance until we get to a new line.
+        while True:
+            token = self._get_current_token()
+            if token.type == CsvTokenType.NEWLINE:
+                self.error_state = False
+                self._advance_line()
+                return
+            self._advance()
 
     def parse(self) -> Iterable[CsvRow | None]:
         # We have already 'primed the pump' in _parse_header() so no need to here
 
         row_values = []
-        comma_index = 0
+        self.collumn_index = 0
         while True:
+            if self.error_state:
+                row_values.clear()
+                self._recover_from_error()
+
             token = self._get_current_token()
             match token.type:
                 case CsvTokenType.NEWLINE:
@@ -123,27 +126,32 @@ class CsvParser:
                     row = CsvRow(row_values.copy())
                     row_values.clear()
 
-                    comma_index = 0
+                    self.collumn_index = 0
                     self._advance_line()
                     yield row
                 case CsvTokenType.COMMA:
                     self._assert_previous_value()
 
-                    comma_index += 1
-                    self._assert_collumn_index(comma_index)
+                    self.collumn_index += 1
+                    self._assert_collumn_index()
                     self._advance()
                 case CsvTokenType.VALUE:
                     # At this point we know that 'token' is a CsvValueToken
                     value_token = cast(CsvValueToken, token)
 
                     try:
-                        collumn_type = self.header.lookup_collumn_type(comma_index)
-                    except IndexError:
-                        raise CsvParserError(
-                            "Could not get collumn type, too many commas!",
-                            self._get_previous_token(),  # Pass the previous token (which is assumed to be the culprit comma)
+                        collumn_type = self.header.lookup_collumn_type(
+                            self.collumn_index
                         )
-                    value = CsvValue(collumn_type, value_token.value)
+                    except IndexError:
+                        self._handle_error(
+                            CsvParserError(
+                                "Could not get collumn type, too many commas!",
+                                self._get_previous_token(),  # Pass the previous token (which is assumed to be the culprit comma)
+                            )
+                        )
+
+                    value = CsvValue(collumn_type, value_token)
                     row_values.append(value)
                     self._advance()
                 case CsvTokenType.END_OF_FILE:

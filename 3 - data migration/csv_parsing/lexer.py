@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from csv_token import CsvTokenType, CsvToken, CsvValueToken
+from .token import CsvTokenType, CsvToken, CsvValueToken
 
 
 class CsvLexer:
