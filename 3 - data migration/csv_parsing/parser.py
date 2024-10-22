@@ -32,6 +32,7 @@ class CsvParser:
         print_error_to: TextIO | None,
     ) -> None:
         self.error_state = False
+        self.had_error = False
 
         self.input = CsvLexer(lines).lex()
         self.bad_line_mode = bad_line_mode
@@ -77,6 +78,7 @@ class CsvParser:
 
     def _handle_error(self, error: CsvError):
         self.error_state = True
+        self.had_error = True
         match self.bad_line_mode:
             case BadLineMode.ERROR:
                 raise error
@@ -116,6 +118,9 @@ class CsvParser:
                 self._advance_line()
                 return
             self._advance()
+
+    def had_errors(self) -> bool:
+        return self.had_error
 
     def parse(self) -> Iterable[CsvRow | None]:
         # We have already 'primed the pump' in _parse_header() so no need to here

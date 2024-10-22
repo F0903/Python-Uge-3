@@ -21,12 +21,15 @@ class CsvTypeValidator:
         print_error_to: TextIO | None,
     ) -> None:
         self.error_state = False
+        self.had_error = False
+
         self.type_pattern_map = type_pattern_map
         self.bad_line_mode = bad_line_mode
         self.print_to_file = print_error_to
 
     def _handle_error(self, error: CsvError):
         self.error_state = True
+        self.had_error = True
         match self.bad_line_mode:
             case BadLineMode.ERROR:
                 raise error
@@ -58,6 +61,9 @@ class CsvTypeValidator:
                     f"Unknown collumn type! '{value_type}'", value.debug_get_token()
                 )
             )
+
+    def had_errors(self) -> bool:
+        return self.had_error
 
     def validate(self, rows: Iterable[CsvRow | None]) -> Iterable[CsvRow | None]:
         for row in rows:

@@ -14,9 +14,10 @@ if args_len < 3:
 
 input_path = args[1]
 output_path = args[2]
+error_path = "error_output.txt"
 
 try:
-    with open(input_path, "r") as input, open("error_output.txt", "w") as error, open(
+    with open(input_path, "r") as input, open(error_path, "w") as error, open(
         output_path, "w"
     ) as output:
         parser = CsvParser(input, BadLineMode.WARNING, print_error_to=error)
@@ -42,6 +43,15 @@ try:
             # Som jeg har forstået opgaven er der ikke noget specifikt påkrævet fil format
             # til output, så det bliver bare printet ud i mit "ejet" format :)
             print(row, file=output)
+
+        if parser.had_errors():
+            print(
+                f"There were format errors in the source file. Please check '{error_path}' for details."
+            )
+        if validator.had_errors():
+            print(
+                f"There were type validation errors in the source file. Please check '{error_path}' for details."
+            )
 
 except PermissionError as e:
     print(f"Insufficient file permissions!\nFull error: {e}")
