@@ -5,8 +5,8 @@ from csv_error import CsvError
 
 
 class CsvParserError(CsvError):
-    def __init__(self, message: str, line_num: int) -> None:
-        super().__init__(message, line_num)
+    def __init__(self, message: str, token: CsvToken) -> None:
+        super().__init__(message, token)
 
 
 class CsvHeader:
@@ -15,6 +15,9 @@ class CsvHeader:
 
     def lookup_collumn_type(self, comma_index: int) -> str:
         return self.collumn_decls[comma_index]
+
+    def get_collumn_count(self) -> int:
+        return len(self.collumn_decls)
 
 
 class CsvValue:
@@ -93,6 +96,19 @@ class CsvParser:
         self._advance()
         self.line_num += 1
 
+    def _assert_previous_value(self):
+        current = self._get_current_token()
+        last = self._get_previous_token()
+        if (
+            current.type == CsvTokenType.COMMA or current.type == CsvTokenType.NEWLINE
+        ) and (last.type == CsvTokenType.COMMA or last.type == CsvTokenType.NEWLINE):
+            raise CsvParserError("Empty value!", self._get_current_token())
+
+    def _assert_collumn_index(self, collumn_index: int):
+        collumns_count = self.header.get_collumn_count()
+        if collumn_index >= collumns_count:
+            raise CsvParserError("Too many commas in row!", self._get_current_token())
+
     def parse(self) -> Iterable[CsvRow | None]:
         # We have already 'primed the pump' in _parse_header() so no need to here
 
@@ -102,15 +118,19 @@ class CsvParser:
             token = self._get_current_token()
             match token.type:
                 case CsvTokenType.NEWLINE:
+                    self._assert_previous_value()
+
                     row = CsvRow(row_values.copy())
-
                     row_values.clear()
-                    comma_index = 0
 
+                    comma_index = 0
                     self._advance_line()
                     yield row
                 case CsvTokenType.COMMA:
+                    self._assert_previous_value()
+
                     comma_index += 1
+                    self._assert_collumn_index(comma_index)
                     self._advance()
                 case CsvTokenType.VALUE:
                     # At this point we know that 'token' is a CsvValueToken
