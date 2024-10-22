@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "2 - log file analysis"
+		},
+		{
+			"path": "3 - data migration"
 		}
 	],
 	"settings": {}
