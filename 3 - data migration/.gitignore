@@ -1,1 +1,4 @@
-*.txt
+# There might be .txt files we need to sync (like requirements.txt) so we can't ignore all.
+error_output.txt
+output_test.txt
+output.txt

@@ -40,7 +40,7 @@ class CsvTypeValidator:
                 )
 
     def _check_value(self, value: CsvValue) -> bool:
-        value_type = value.get_collumn_type()
+        value_type = value.get_column_type()
         try:
             pattern = self.type_pattern_map[value_type]
             value_str = value.get_value()
@@ -58,7 +58,7 @@ class CsvTypeValidator:
         except KeyError:
             self._handle_error(
                 CsvValidatorError(
-                    f"Unknown collumn type! '{value_type}'", value.debug_get_token()
+                    f"Unknown column type! '{value_type}'", value.debug_get_token()
                 )
             )
 

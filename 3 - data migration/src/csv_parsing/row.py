@@ -8,9 +8,9 @@ class CsvRow:
     def get_all_values(self) -> list[CsvValue]:
         return self.values
 
-    def get_value(self, collumn_type: str) -> CsvValue:
+    def get_value(self, column_type: str) -> CsvValue:
         for value in self.values:
-            if value._collumn_type != collumn_type:
+            if value._column_type != column_type:
                 continue
             return value
 

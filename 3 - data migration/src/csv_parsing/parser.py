@@ -14,14 +14,14 @@ class CsvParserError(CsvError):
 
 
 class CsvHeader:
-    def __init__(self, collumn_decls: list[str]) -> None:
-        self.collumn_decls = collumn_decls
+    def __init__(self, column_decls: list[str]) -> None:
+        self.column_decls = column_decls
 
-    def lookup_collumn_type(self, comma_index: int) -> str:
-        return self.collumn_decls[comma_index]
+    def lookup_column_type(self, comma_index: int) -> str:
+        return self.column_decls[comma_index]
 
-    def get_collumn_count(self) -> int:
-        return len(self.collumn_decls)
+    def get_column_count(self) -> int:
+        return len(self.column_decls)
 
 
 class CsvParser:
@@ -45,7 +45,7 @@ class CsvParser:
     def _parse_header(self):
         self._advance()  # Priming the pump :)
         comma_index = 0
-        header_collumn_decls = []
+        header_column_decls = []
         while True:
             token = self._get_current_token()
             match token.type:
@@ -57,10 +57,10 @@ class CsvParser:
                 case CsvTokenType.VALUE:
                     # At this point we know that 'token' is a CsvValueToken
                     value_token = cast(CsvValueToken, token)
-                    header_collumn_decls.append(value_token.value)
+                    header_column_decls.append(value_token.value)
             self._advance()
 
-        self.header = CsvHeader(header_collumn_decls)
+        self.header = CsvHeader(header_column_decls)
 
     def _get_current_token(self) -> CsvToken:
         return self.current_token
@@ -100,15 +100,15 @@ class CsvParser:
                 CsvParserError("Empty value!", self._get_current_token())
             )
 
-    def _assert_collumn_index(self):
-        collumns_count = self.header.get_collumn_count()
-        if self.collumn_index >= collumns_count:
+    def _assert_column_index(self):
+        columns_count = self.header.get_column_count()
+        if self.column_index >= columns_count:
             self._handle_error(
                 CsvParserError("Too many commas in row!", self._get_current_token())
             )
 
     def _recover_from_error(self):
-        self.collumn_index = 0
+        self.column_index = 0
 
         # If we are in an error state, then we advance until we get to a new line.
         while True:
@@ -126,7 +126,7 @@ class CsvParser:
         # We have already 'primed the pump' in _parse_header() so no need to here
 
         row_values = []
-        self.collumn_index = 0
+        self.column_index = 0
         while True:
             if self.error_state:
                 row_values.clear()
@@ -140,32 +140,30 @@ class CsvParser:
                     row = CsvRow(row_values.copy())
                     row_values.clear()
 
-                    self.collumn_index = 0
+                    self.column_index = 0
                     self._advance_line()
                     yield row
                 case CsvTokenType.COMMA:
                     self._assert_previous_value()
 
-                    self.collumn_index += 1
-                    self._assert_collumn_index()
+                    self.column_index += 1
+                    self._assert_column_index()
                     self._advance()
                 case CsvTokenType.VALUE:
                     # At this point we know that 'token' is a CsvValueToken
                     value_token = cast(CsvValueToken, token)
 
                     try:
-                        collumn_type = self.header.lookup_collumn_type(
-                            self.collumn_index
-                        )
+                        column_type = self.header.lookup_column_type(self.column_index)
                     except IndexError:
                         self._handle_error(
                             CsvParserError(
-                                "Could not get collumn type, too many commas!",
+                                "Could not get column type, too many commas!",
                                 self._get_previous_token(),  # Pass the previous token (which is assumed to be the culprit comma)
                             )
                         )
 
-                    value = CsvValue(collumn_type, value_token)
+                    value = CsvValue(column_type, value_token)
                     row_values.append(value)
                     self._advance()
                 case CsvTokenType.END_OF_FILE:

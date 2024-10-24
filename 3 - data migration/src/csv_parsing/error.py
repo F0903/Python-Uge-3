@@ -11,4 +11,4 @@ class CsvError(Exception):
         return self.get_printable_message()
 
     def get_printable_message(self) -> str:
-        return f"{self.message}\n\tat line {self.token.line_num}, collumn {self.token.char_index}"
+        return f"{self.message}\n\tat line {self.token.line_num}, column {self.token.char_index}"

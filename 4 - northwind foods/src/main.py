@@ -1,9 +1,8 @@
 import sqlite3 as sql
 import pandas as pd
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from plot_utils import plot_bar_graph, plot_line_graph, get_colormap
 from utils import is_last_day_of_month
+from plot import Plot
 
 
 def get_table_dataframe(table: str) -> pd.DataFrame:
@@ -22,10 +21,7 @@ def get_employee_full_name(employee_id: int | str) -> str:
 
 
 def plot_sales_per_country(df: pd.DataFrame):
-    fig = plt.figure(figsize=(8, 6))
-    fig.canvas.manager.set_window_title("Sales per country")
-
-    # Group by ShipCountry, get the count and put that in a collumn called "sales_per_country"
+    # Group by ShipCountry, get the count and put that in a column called "sales_per_country"
     sales_per_country = (
         df.groupby("ShipCountry").size().reset_index(name="sales_per_country")
     )
@@ -33,25 +29,19 @@ def plot_sales_per_country(df: pd.DataFrame):
     # Sort by most sales to least sales
     sales_per_country.sort_values("sales_per_country", ascending=True, inplace=True)
 
-    # COLORS!!111!!
-    colors = get_colormap("viridis", sales_per_country)
-
-    plot_bar_graph(
-        sales_per_country["ShipCountry"],
-        sales_per_country["sales_per_country"],
-        color=colors,
-        title="Sales per country",
-        xlabel="Countries",
-        ylabel="Orders",
-        xticks_kwargs={"rotation": 60, "ha": "right"},
+    Plot(sales_per_country, (8, 6)).set_title("Sales per Country").set_xlabel(
+        "Countries"
+    ).set_ylabel("Orders").set_xticks_kwargs(
+        {"rotation": 60, "ha": "right"}
+    ).set_colormap(
+        "viridis"
+    ).bar_graph(
+        "ShipCountry", "sales_per_country"
     )
 
 
 def plot_sales_per_employee(df: pd.DataFrame):
-    fig = plt.figure(figsize=(6, 6))
-    fig.canvas.manager.set_window_title("Sales per employee")
-
-    # Group by employee id, get the count and put that in a collumn called "sales_count"
+    # Group by employee id, get the count and put that in a column called "sales_count"
     employee_sales = df.groupby("EmployeeID").size().reset_index(name="sales_count")
 
     # Sort by most sales to least sales
@@ -62,27 +52,17 @@ def plot_sales_per_employee(df: pd.DataFrame):
         lambda id: f"{get_employee_full_name(id)} (ID: {id})"
     )
 
-    # COLORS!!111!!
-    colors = get_colormap("plasma", employee_sales)
-
-    plot_bar_graph(
-        employee_sales["employee_mapped_name"],
-        employee_sales["sales_count"],
-        color=colors,
-        title="Sales per employee",
-        xlabel="Employees",
-        ylabel="Sales",
-        xticks_kwargs={"rotation": 45, "ha": "right"},
+    Plot(employee_sales, (6, 6)).set_title("Sales per Employee").set_xlabel(
+        "Employees"
+    ).set_ylabel("Sales").set_colormap("plasma").set_xticks_kwargs(
+        {"rotation": 45, "ha": "right"}
+    ).bar_graph(
+        "employee_mapped_name", "sales_count"
     )
 
 
 def plot_sales_per_month(df: pd.DataFrame):
-    fig = plt.figure(figsize=(10, 6))
-    fig.canvas.manager.set_window_title(
-        "Sales per month"
-    )  # Why is it this convoluted to set the figure window title????
-
-    # Group by OrderDate, get the count and put that in a collumn called "sales_count"
+    # Group by OrderDate, get the count and put that in a column called "sales_count"
     sales_by_date = df.groupby("OrderDate").size().reset_index(name="sales_count")
 
     # Ensure proper format
@@ -98,41 +78,36 @@ def plot_sales_per_month(df: pd.DataFrame):
     # Resample by month, get the sum and reset the index.
     monthly_sales = sales_by_date.resample("MS").sum().reset_index()
 
-    # Set the Month format on the plot
-    plt.gca().xaxis.set_major_formatter(
-        mdates.DateFormatter("%b %Y")
-    )  # Format: Month Year
-    # Make one x tick per month
-    plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-
-    plot_line_graph(
-        monthly_sales["OrderDate"],
-        monthly_sales["sales_count"],
-        color="red",
-        title="Monthly sales",
-        xlabel="Month",
-        ylabel="Sales",
-        xticks_kwargs={"rotation": 60, "ha": "right"},
+    plot = (
+        Plot(monthly_sales, (10, 6))
+        .set_advanced_axes_options(
+            lambda axes: axes.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+        )
+        .set_advanced_axes_options(
+            lambda axes: axes.xaxis.set_major_locator(mdates.MonthLocator())
+        )
+        .set_color("red")
+        .set_title("Montly Sales")
+        .set_xlabel("Month")
+        .set_ylabel("Sales")
+        .set_xticks_kwargs({"rotation": 60, "ha": "right"})
     )
 
+    plot.line_graph("OrderDate", "sales_count")
+
     if not is_last_month_complete:
-        plt.annotate(
+        plot.annotate(
             "Partial Month",
-            xy=(
-                monthly_sales["OrderDate"].iloc[-1],
-                monthly_sales["sales_count"].iloc[-1],
-            ),
-            xytext=(-100, 0),
-            textcoords="offset points",
-            arrowprops=dict(facecolor="black", arrowstyle="->"),
+            "OrderDate",
+            "sales_count",
+            -1,
+            -1,
+            text_coord_offset=(-100, 0),
         )
 
 
-def plot_purchases_per_customer(df: pd.DataFrame):
-    fig = plt.figure(figsize=(10, 10))
-    fig.canvas.manager.set_window_title("Top 20 Customers")
-
-    # Group by ShipName, get the count and put that in a collumn called "purchase_count"
+def plot_top_customers(df: pd.DataFrame):
+    # Group by ShipName, get the count and put that in a column called "purchase_count"
     customer_purchases = (
         df.groupby("ShipName").size().reset_index(name="purchase_count")
     )
@@ -140,28 +115,19 @@ def plot_purchases_per_customer(df: pd.DataFrame):
     # Sort by most sales to least sales
     customer_purchases.sort_values("purchase_count", ascending=False, inplace=True)
 
-    # COLORS!!111!!
-    colors = get_colormap("plasma", customer_purchases)
-
-    print(customer_purchases)
-
     top_20_customers = customer_purchases.head(20)
     top_20_customers = top_20_customers.iloc[::-1]  # Reverse to get ascending order
 
-    plot_bar_graph(
-        top_20_customers["ShipName"],
-        top_20_customers["purchase_count"],
-        color=colors,
-        title="Top 20 Customers",
-        xlabel="Purchases",
-        ylabel="Customers",
-        horizontal=True,
+    Plot(top_20_customers, (10, 10)).set_title("Top 20 Customers").set_xlabel(
+        "Purchases"
+    ).set_ylabel("Customers").set_colormap("plasma").bar_graph(
+        "ShipName", "purchase_count", horizontal=True
     )
 
 
 df = get_table_dataframe("orders")
-plot_purchases_per_customer(df)
+plot_top_customers(df)
 plot_sales_per_country(df)
 plot_sales_per_employee(df)
 plot_sales_per_month(df)
-plt.show()
+Plot.show_all_plots()
