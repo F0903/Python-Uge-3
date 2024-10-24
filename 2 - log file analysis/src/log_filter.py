@@ -2,6 +2,7 @@ import re
 from collections.abc import Iterable
 from log_file import LogFile
 
+
 class LogFilter:
     def __init__(self, filter_regex: re.Pattern):
         self.pattern = filter_regex
@@ -14,8 +15,8 @@ class LogFilter:
         for line in input:
             if not self.is_match(line):
                 continue
-            yield line.strip("\r\n") # Remove newline
-    
+            yield line.strip("\r\n")  # Remove newline
+
     def filter_log_file(self, log_file: LogFile) -> Iterable[str]:
         line_iter = log_file.get_line_iter()
         match_iter = self.filter_occurances(line_iter)

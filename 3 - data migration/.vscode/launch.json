@@ -5,10 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python Debugger: Main",
+      "name": "Python Debugger: Parse with default test args",
       "type": "debugpy",
       "request": "launch",
-      "program": "main.py",
+      "program": "src/main.py",
+      "args": ["csv_test_small.csv", "output_test.txt"],
       "console": "integratedTerminal"
     }
   ]
