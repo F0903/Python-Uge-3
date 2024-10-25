@@ -1,23 +1,8 @@
-import sqlite3 as sql
 import pandas as pd
 import matplotlib.dates as mdates
 from utils import is_last_day_of_month
-from plot import Plot
-
-
-def get_table_dataframe(table: str) -> pd.DataFrame:
-    with sql.connect(database="northwind.db") as con:
-        return pd.read_sql(f"SELECT * FROM `{table}`", con)
-
-
-def get_employee_full_name(employee_id: int | str) -> str:
-    with sql.connect(database="northwind.db") as con:
-        names: tuple[str, str] = con.execute(
-            "SELECT FirstName, LastName from Employees WHERE EmployeeID = ?",
-            str(employee_id),
-        ).fetchone()
-        full_name = names[0] + " " + names[1]
-        return full_name
+from plotting.plot import Plot
+from db import get_employee_full_name, get_table_dataframe
 
 
 def plot_sales_per_country(df: pd.DataFrame):
@@ -29,14 +14,16 @@ def plot_sales_per_country(df: pd.DataFrame):
     # Sort by most sales to least sales
     sales_per_country.sort_values("sales_per_country", ascending=True, inplace=True)
 
-    Plot(sales_per_country, (8, 6)).set_title("Sales per Country").set_xlabel(
-        "Countries"
-    ).set_ylabel("Orders").set_xticks_kwargs(
-        {"rotation": 60, "ha": "right"}
-    ).set_colormap(
-        "viridis"
-    ).bar_graph(
-        "ShipCountry", "sales_per_country"
+    plot = (
+        Plot((8, 6))
+        .set_title("Sales per Country")
+        .set_xlabel("Countries")
+        .set_ylabel("Orders")
+        .set_xticks_kwargs({"rotation": 60, "ha": "right"})
+        .set_colormap("viridis", len(sales_per_country))
+    )
+    plot.bar_graph(
+        sales_per_country["ShipCountry"], sales_per_country["sales_per_country"]
     )
 
 
@@ -52,12 +39,16 @@ def plot_sales_per_employee(df: pd.DataFrame):
         lambda id: f"{get_employee_full_name(id)} (ID: {id})"
     )
 
-    Plot(employee_sales, (6, 6)).set_title("Sales per Employee").set_xlabel(
-        "Employees"
-    ).set_ylabel("Sales").set_colormap("plasma").set_xticks_kwargs(
-        {"rotation": 45, "ha": "right"}
-    ).bar_graph(
-        "employee_mapped_name", "sales_count"
+    plot = (
+        Plot((6, 6))
+        .set_title("Sales per Employee")
+        .set_xlabel("Employees")
+        .set_ylabel("Sales")
+        .set_colormap("plasma", len(employee_sales))
+        .set_xticks_kwargs({"rotation": 45, "ha": "right"})
+    )
+    plot.bar_graph(
+        employee_sales["employee_mapped_name"], employee_sales["sales_count"]
     )
 
 
@@ -79,7 +70,7 @@ def plot_sales_per_month(df: pd.DataFrame):
     monthly_sales = sales_by_date.resample("MS").sum().reset_index()
 
     plot = (
-        Plot(monthly_sales, (10, 6))
+        Plot((10, 6))
         .set_advanced_axes_options(
             lambda axes: axes.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
         )
@@ -93,15 +84,19 @@ def plot_sales_per_month(df: pd.DataFrame):
         .set_xticks_kwargs({"rotation": 60, "ha": "right"})
     )
 
-    plot.line_graph("OrderDate", "sales_count")
+    monthly_sales_order_date = monthly_sales["OrderDate"]
+    monthly_sales_sales_count = monthly_sales["sales_count"]
+
+    plot.line_graph(monthly_sales_order_date, monthly_sales_sales_count)
 
     if not is_last_month_complete:
+
         plot.annotate(
             "Partial Month",
-            "OrderDate",
-            "sales_count",
-            -1,
-            -1,
+            xy_coords=(
+                monthly_sales_order_date.iloc[-1],
+                monthly_sales_sales_count.iloc[-1],
+            ),
             text_coord_offset=(-100, 0),
         )
 
@@ -118,16 +113,24 @@ def plot_top_customers(df: pd.DataFrame):
     top_20_customers = customer_purchases.head(20)
     top_20_customers = top_20_customers.iloc[::-1]  # Reverse to get ascending order
 
-    Plot(top_20_customers, (10, 10)).set_title("Top 20 Customers").set_xlabel(
-        "Purchases"
-    ).set_ylabel("Customers").set_colormap("plasma").bar_graph(
-        "ShipName", "purchase_count", horizontal=True
+    plot = (
+        Plot((10, 10))
+        .set_title("Top 20 Customers")
+        .set_xlabel("Purchases")
+        .set_ylabel("Customers")
+        .set_colormap("plasma", len(top_20_customers))
+    )
+    plot.bar_graph(
+        top_20_customers["ShipName"],
+        top_20_customers["purchase_count"],
+        horizontal=True,
     )
 
 
-df = get_table_dataframe("orders")
-plot_top_customers(df)
-plot_sales_per_country(df)
-plot_sales_per_employee(df)
-plot_sales_per_month(df)
-Plot.show_all_plots()
+if __name__ == "__main__":
+    df = get_table_dataframe("orders")
+    plot_top_customers(df)
+    plot_sales_per_country(df)
+    plot_sales_per_employee(df)
+    plot_sales_per_month(df)
+    Plot.show_all_plots()

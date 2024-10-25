@@ -1,12 +1,10 @@
-import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Any, Self, Callable
-from plot_utils import get_colormap
+from .plot_utils import get_colormap
 
 
 class Plot:
-    def __init__(self, data: pd.DataFrame, figsize: tuple[int, int]) -> None:
-        self.data = data
+    def __init__(self, figsize: tuple[int, int] | None = None) -> None:
         self.fig = plt.figure(figsize=figsize)
         self.color = None
 
@@ -33,23 +31,26 @@ class Plot:
         fn(axes)
         return self
 
+    def set_axis(self, value: str) -> Self:
+        plt.axis(value)
+        return self
+
     def set_color(self, color: str) -> Self:
         self.color = color
         return self
 
-    def set_colormap(self, colormap: str) -> Self:
-        self.color = get_colormap(colormap, len(self.data))
+    def set_colormap(self, colormap: str, length: int) -> Self:
+        self.color = get_colormap(colormap, length)
         return self
 
     def line_graph(
         self,
-        x_column: str,
-        y_column: str,
+        x_data: list,
+        y_data: list,
     ):
-        # Create explicitly instead of using DataFrame.plot() for more control (and due to some issues)
         plt.plot(
-            self.data[x_column],
-            self.data[y_column],
+            x_data,
+            y_data,
             color=self.color,
         )
 
@@ -58,22 +59,21 @@ class Plot:
 
     def bar_graph(
         self,
-        x_column: str,
-        y_column: str,
+        x_data: list,
+        y_data: list,
         *,
         horizontal: bool = False,
     ):
-        # Create explicitly instead of using DataFrame.plot() for more control (and due to some issues)
         if horizontal:
             plt.barh(
-                self.data[x_column],
-                self.data[y_column],
+                x_data,
+                y_data,
                 color=self.color,
             )
         else:
             plt.bar(
-                self.data[x_column],
-                self.data[y_column],
+                x_data,
+                y_data,
                 color=self.color,
             )
 
@@ -83,23 +83,20 @@ class Plot:
     def annotate(
         self,
         text: str,
-        x_data: str,
-        y_data: str,
-        x_data_index: int,
-        y_data_index: int,
+        xy_coords: tuple[float, float],
         text_coord_offset: tuple[int, int],
         arrow_props: dict[str, Any] | None = dict(facecolor="black", arrowstyle="->"),
     ):
         plt.annotate(
             text,
-            xy=(
-                self.data[x_data].iloc[x_data_index],
-                self.data[y_data].iloc[y_data_index],
-            ),
+            xy=xy_coords,
             xytext=text_coord_offset,
             textcoords="offset points",
             arrowprops=arrow_props,
         )
+
+    def imshow(self, element):
+        plt.imshow(element)
 
     @staticmethod
     def show_all_plots():

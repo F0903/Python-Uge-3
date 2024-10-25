@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "4 - northwind foods"
+		},
+		{
+			"path": "shared"
 		}
 	],
 	"settings": {}
